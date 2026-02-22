@@ -1,0 +1,28 @@
+stages:
+  - lint
+  - build
+
+sql_lint:
+  stage: lint
+  image: python:3.12-alpine
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  before_script:
+    - pip install --no-cache-dir sqlfluff
+  script:
+    - sqlfluff lint --dialect sqlite dump.sql request.sql
+  allow_failure: false
+
+docker_build:
+  stage: build
+  image: docker:27.2.0
+  services:
+    - name: docker:27.2.0-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  script:
+    - docker build -t ias-compliance-db:latest .
+    - docker run --rm ias-compliance-db:latest ls -la /app/compliance.db
